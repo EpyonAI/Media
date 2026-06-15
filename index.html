@@ -3,6 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="media-gallery-owner" content="EpyonAI" />
+    <meta name="media-gallery-repo" content="Media" />
     <title>Media Gallery</title>
     <style>
       :root {
@@ -249,6 +251,14 @@
         const host = window.location.hostname;
         const pathParts = window.location.pathname.split("/").filter(Boolean);
         const githubPagesSuffix = ".github.io";
+        const configuredOwner =
+          document
+            .querySelector('meta[name="media-gallery-owner"]')
+            ?.getAttribute("content") || FALLBACK_REPOSITORY.owner;
+        const configuredRepo =
+          document
+            .querySelector('meta[name="media-gallery-repo"]')
+            ?.getAttribute("content") || FALLBACK_REPOSITORY.repo;
 
         if (host.endsWith(githubPagesSuffix) && pathParts.length > 0) {
           return {
@@ -257,7 +267,7 @@
           };
         }
 
-        return FALLBACK_REPOSITORY;
+        return { owner: configuredOwner, repo: configuredRepo };
       }
 
       function fileUrlFor(relativePath) {
@@ -458,7 +468,8 @@
           refreshFilters(state.items);
           renderGallery();
         } catch (error) {
-          status.textContent = error.message;
+          console.error(error);
+          status.textContent = "Unable to load media from GitHub right now. Please try again later.";
           emptyState.hidden = false;
         }
       }
