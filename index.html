@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Media Gallery</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0f172a;
+        --panel: #111827;
+        --panel-alt: #1f2937;
+        --border: #334155;
+        --text: #e5e7eb;
+        --muted: #94a3b8;
+        --accent: #22c55e;
+        --accent-strong: #16a34a;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: linear-gradient(180deg, #020617, var(--bg));
+        color: var(--text);
+      }
+
+      main {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem 1rem 3rem;
+      }
+
+      .hero,
+      .toolbar,
+      .status,
+      .empty-state,
+      .card {
+        background: rgba(17, 24, 39, 0.92);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+      }
+
+      .hero {
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+      }
+
+      .hero h1 {
+        margin: 0 0 0.75rem;
+        font-size: clamp(2rem, 5vw, 3rem);
+      }
+
+      .hero p,
+      .status,
+      .empty-state,
+      .meta,
+      .copy-hint {
+        color: var(--muted);
+      }
+
+      .toolbar {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 0.75rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+      }
+
+      label {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+        font-size: 0.95rem;
+      }
+
+      select,
+      button {
+        font: inherit;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+      }
+
+      select {
+        padding: 0.7rem 0.8rem;
+        color: var(--text);
+        background: var(--panel-alt);
+      }
+
+      .status,
+      .empty-state {
+        padding: 1rem;
+      }
+
+      .gallery {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 1rem;
+        margin-top: 1rem;
+      }
+
+      .card {
+        overflow: hidden;
+      }
+
+      .preview {
+        background: #000;
+        aspect-ratio: 16 / 10;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .preview img,
+      .preview video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .content {
+        padding: 1rem;
+      }
+
+      .content h2 {
+        margin: 0 0 0.5rem;
+        font-size: 1rem;
+        word-break: break-word;
+      }
+
+      .meta {
+        display: grid;
+        gap: 0.35rem;
+        margin-bottom: 1rem;
+        font-size: 0.92rem;
+      }
+
+      .actions {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
+
+      .copy-button {
+        cursor: pointer;
+        padding: 0.65rem 0.9rem;
+        color: #052e16;
+        background: var(--accent);
+        border-color: transparent;
+      }
+
+      .copy-button:hover {
+        background: var(--accent-strong);
+      }
+
+      .copy-button:focus-visible,
+      select:focus-visible {
+        outline: 2px solid #86efac;
+        outline-offset: 2px;
+      }
+
+      code {
+        padding: 0.1rem 0.35rem;
+        border-radius: 6px;
+        background: rgba(51, 65, 85, 0.5);
+      }
+
+      @media (max-width: 640px) {
+        main {
+          padding-inline: 0.75rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="hero">
+        <h1>Media Gallery</h1>
+        <p>
+          Store images and videos in this repository, then browse them here. Use
+          the folder pattern <code>Organization/Project/Crew Member/file.ext</code>
+          to unlock automatic sorting and filtering.
+        </p>
+      </section>
+
+      <section class="toolbar" aria-label="Gallery controls">
+        <label>
+          Sort by
+          <select id="sortBy">
+            <option value="organization">Organization</option>
+            <option value="project">Project</option>
+            <option value="crewMember">Crew Member</option>
+            <option value="filename">File name</option>
+          </select>
+        </label>
+        <label>
+          Organization
+          <select id="organizationFilter">
+            <option value="">All organizations</option>
+          </select>
+        </label>
+        <label>
+          Project
+          <select id="projectFilter">
+            <option value="">All projects</option>
+          </select>
+        </label>
+        <label>
+          Crew Member
+          <select id="crewFilter">
+            <option value="">All crew members</option>
+          </select>
+        </label>
+      </section>
+
+      <section id="status" class="status" aria-live="polite">Loading media…</section>
+      <section id="emptyState" class="empty-state" hidden>
+        No supported images or videos were found yet. Add files with extensions like
+        <code>.png</code>, <code>.jpg</code>, <code>.webp</code>, <code>.mp4</code>,
+        or <code>.webm</code> to this repository to populate the gallery.
+      </section>
+      <section id="gallery" class="gallery" aria-label="Gallery results"></section>
+    </main>
+
+    <script>
+      const FALLBACK_REPOSITORY = { owner: "EpyonAI", repo: "Media" };
+      const SUPPORTED_EXTENSIONS =
+        /\.(avif|bmp|gif|jpe?g|m4v|mov|mp4|ogg|png|svg|webm|webp)$/i;
+      const IMAGE_EXTENSIONS = /\.(avif|bmp|gif|jpe?g|png|svg|webp)$/i;
+
+      const state = {
+        items: [],
+      };
+
+      const gallery = document.getElementById("gallery");
+      const status = document.getElementById("status");
+      const emptyState = document.getElementById("emptyState");
+      const sortBy = document.getElementById("sortBy");
+      const organizationFilter = document.getElementById("organizationFilter");
+      const projectFilter = document.getElementById("projectFilter");
+      const crewFilter = document.getElementById("crewFilter");
+
+      function inferRepository() {
+        const host = window.location.hostname;
+        const pathParts = window.location.pathname.split("/").filter(Boolean);
+
+        if (host.endsWith(".github.io") && pathParts.length > 0) {
+          return { owner: host.split(".")[0], repo: pathParts[0] };
+        }
+
+        return FALLBACK_REPOSITORY;
+      }
+
+      function fileUrlFor(relativePath) {
+        return new URL(
+          relativePath.split("/").map(encodeURIComponent).join("/"),
+          new URL(".", window.location.href)
+        ).href;
+      }
+
+      async function fetchRepositoryTree() {
+        const repository = inferRepository();
+        const repoResponse = await fetch(
+          `https://api.github.com/repos/${repository.owner}/${repository.repo}`
+        );
+
+        if (!repoResponse.ok) {
+          throw new Error("Unable to load repository metadata from GitHub.");
+        }
+
+        const repo = await repoResponse.json();
+        const treeResponse = await fetch(
+          `https://api.github.com/repos/${repository.owner}/${repository.repo}/git/trees/${repo.default_branch}?recursive=1`
+        );
+
+        if (!treeResponse.ok) {
+          throw new Error("Unable to load the repository file list from GitHub.");
+        }
+
+        const tree = await treeResponse.json();
+        return tree.tree
+          .filter((entry) => entry.type === "blob" && SUPPORTED_EXTENSIONS.test(entry.path))
+          .map((entry) => buildMediaItem(entry.path));
+      }
+
+      function buildMediaItem(path) {
+        const parts = path.split("/");
+        const filename = parts[parts.length - 1];
+        const folders = parts.slice(0, -1);
+
+        return {
+          filename,
+          path,
+          organization: folders[0] || "Unassigned",
+          project: folders[1] || "Unassigned",
+          crewMember: folders[2] || "Unassigned",
+          url: fileUrlFor(path),
+          type: IMAGE_EXTENSIONS.test(path) ? "image" : "video",
+        };
+      }
+
+      function populateFilter(select, values, label) {
+        const currentValue = select.value;
+        select.innerHTML = `<option value="">All ${label}</option>`;
+        values.forEach((value) => {
+          const option = document.createElement("option");
+          option.value = value;
+          option.textContent = value;
+          select.appendChild(option);
+        });
+        select.value = values.includes(currentValue) ? currentValue : "";
+      }
+
+      function refreshFilters(items) {
+        populateFilter(
+          organizationFilter,
+          [...new Set(items.map((item) => item.organization))].sort(),
+          "organizations"
+        );
+        populateFilter(
+          projectFilter,
+          [...new Set(items.map((item) => item.project))].sort(),
+          "projects"
+        );
+        populateFilter(
+          crewFilter,
+          [...new Set(items.map((item) => item.crewMember))].sort(),
+          "crew members"
+        );
+      }
+
+      function selectedItems() {
+        return state.items
+          .filter((item) => !organizationFilter.value || item.organization === organizationFilter.value)
+          .filter((item) => !projectFilter.value || item.project === projectFilter.value)
+          .filter((item) => !crewFilter.value || item.crewMember === crewFilter.value)
+          .sort((left, right) => {
+            const key = sortBy.value;
+            const primary = left[key].localeCompare(right[key], undefined, { sensitivity: "base" });
+
+            if (primary !== 0) {
+              return primary;
+            }
+
+            return left.filename.localeCompare(right.filename, undefined, { sensitivity: "base" });
+          });
+      }
+
+      async function copyToClipboard(url, button) {
+        try {
+          await navigator.clipboard.writeText(url);
+        } catch {
+          const field = document.createElement("textarea");
+          field.value = url;
+          document.body.appendChild(field);
+          field.select();
+          document.execCommand("copy");
+          field.remove();
+        }
+
+        const originalText = button.textContent;
+        button.textContent = "Copied!";
+        setTimeout(() => {
+          button.textContent = originalText;
+        }, 1200);
+      }
+
+      function renderGallery() {
+        const items = selectedItems();
+        gallery.replaceChildren();
+
+        status.textContent = `${items.length} media item${items.length === 1 ? "" : "s"} shown`;
+        emptyState.hidden = items.length !== 0;
+
+        items.forEach((item) => {
+          const article = document.createElement("article");
+          article.className = "card";
+
+          const preview = document.createElement("div");
+          preview.className = "preview";
+          if (item.type === "image") {
+            const image = document.createElement("img");
+            image.src = item.url;
+            image.alt = item.filename;
+            image.loading = "lazy";
+            preview.appendChild(image);
+          } else {
+            const video = document.createElement("video");
+            video.src = item.url;
+            video.controls = true;
+            video.preload = "metadata";
+            preview.appendChild(video);
+          }
+
+          const content = document.createElement("div");
+          content.className = "content";
+          const title = document.createElement("h2");
+          title.textContent = item.filename;
+
+          const meta = document.createElement("div");
+          meta.className = "meta";
+          [
+            ["Organization", item.organization],
+            ["Project", item.project],
+            ["Crew Member", item.crewMember],
+            ["Path", item.path],
+          ].forEach(([label, value]) => {
+            const row = document.createElement("div");
+            const strong = document.createElement("strong");
+            strong.textContent = `${label}: `;
+            row.append(strong, value);
+            meta.appendChild(row);
+          });
+
+          const actions = document.createElement("div");
+          actions.className = "actions";
+
+          const copyButton = document.createElement("button");
+          copyButton.className = "copy-button";
+          copyButton.type = "button";
+          copyButton.textContent = "Copy URL";
+          copyButton.addEventListener("click", () => copyToClipboard(item.url, copyButton));
+
+          const hint = document.createElement("span");
+          hint.className = "copy-hint";
+          hint.textContent = "Paste into README files or Codespaces.";
+
+          actions.append(copyButton, hint);
+          content.append(title, meta, actions);
+          article.append(preview, content);
+          gallery.appendChild(article);
+        });
+      }
+
+      async function initializeGallery() {
+        try {
+          state.items = await fetchRepositoryTree();
+          refreshFilters(state.items);
+          renderGallery();
+        } catch (error) {
+          status.textContent = error.message;
+          emptyState.hidden = false;
+        }
+      }
+
+      [sortBy, organizationFilter, projectFilter, crewFilter].forEach((select) =>
+        select.addEventListener("change", renderGallery)
+      );
+
+      initializeGallery();
+    </script>
+  </body>
+</html>
