@@ -235,6 +235,10 @@
         /\.(avif|bmp|gif|jpe?g|m4v|mov|mp4|ogg|png|svg|webm|webp)$/i;
       const IMAGE_EXTENSIONS = /\.(avif|bmp|gif|jpe?g|png|svg|webp)$/i;
       const SORT_KEYS = ["organization", "project", "crewMember", "filename"];
+      const EMPTY_RESULTS_MESSAGE =
+        "No supported images or videos were found yet. Add files with extensions like .png, .jpg, .webp, .mp4, or .webm to this repository to populate the gallery.";
+      const LOAD_ERROR_MESSAGE =
+        "The gallery could not load media metadata from GitHub. Please try again later.";
 
       const state = {
         items: [],
@@ -401,6 +405,7 @@
         gallery.replaceChildren();
 
         status.textContent = `${items.length} media item${items.length === 1 ? "" : "s"} shown`;
+        emptyState.textContent = EMPTY_RESULTS_MESSAGE;
         emptyState.hidden = items.length !== 0;
 
         items.forEach((item) => {
@@ -471,6 +476,7 @@
         } catch (error) {
           console.error(error);
           status.textContent = "Unable to load media from GitHub right now. Please try again later.";
+          emptyState.textContent = LOAD_ERROR_MESSAGE;
           emptyState.hidden = false;
         }
       }
