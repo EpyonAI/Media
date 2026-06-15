@@ -295,10 +295,7 @@
       }
 
       function fileUrlFor(relativePath) {
-        return new URL(
-          relativePath.split("/").map(encodeURIComponent).join("/"),
-          new URL(".", window.location.href)
-        ).href;
+        return new URL(encodeURI(relativePath), new URL(".", window.location.href)).href;
       }
 
       async function fetchRepositoryTree() {
@@ -494,7 +491,7 @@
           renderGallery();
         } catch (error) {
           console.error(error);
-          status.textContent = "Unable to load media from GitHub right now. Please try again later.";
+          status.textContent = LOAD_ERROR_MESSAGE;
           emptyState.textContent = LOAD_ERROR_MESSAGE;
           emptyState.hidden = false;
         }
