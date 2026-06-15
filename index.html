@@ -258,6 +258,15 @@
         )}.`;
       const LOAD_ERROR_MESSAGE =
         "The gallery could not load media metadata from GitHub. Please try again later.";
+      const CONFIGURED_OWNER =
+        document
+          .querySelector('meta[name="media-gallery-owner"]')
+          ?.getAttribute("content") || FALLBACK_REPOSITORY.owner;
+      const CONFIGURED_REPO =
+        document
+          .querySelector('meta[name="media-gallery-repo"]')
+          ?.getAttribute("content") || FALLBACK_REPOSITORY.repo;
+      const PAGE_BASE_URL = new URL(".", window.location.href);
 
       const state = {
         items: [],
@@ -275,14 +284,6 @@
         const host = window.location.hostname;
         const pathParts = window.location.pathname.split("/").filter(Boolean);
         const githubPagesSuffix = ".github.io";
-        const configuredOwner =
-          document
-            .querySelector('meta[name="media-gallery-owner"]')
-            ?.getAttribute("content") || FALLBACK_REPOSITORY.owner;
-        const configuredRepo =
-          document
-            .querySelector('meta[name="media-gallery-repo"]')
-            ?.getAttribute("content") || FALLBACK_REPOSITORY.repo;
 
         if (host.endsWith(githubPagesSuffix) && pathParts.length > 0) {
           return {
@@ -291,11 +292,11 @@
           };
         }
 
-        return { owner: configuredOwner, repo: configuredRepo };
+        return { owner: CONFIGURED_OWNER, repo: CONFIGURED_REPO };
       }
 
       function fileUrlFor(relativePath) {
-        return new URL(encodeURI(relativePath), new URL(".", window.location.href)).href;
+        return new URL(encodeURI(relativePath), PAGE_BASE_URL).href;
       }
 
       async function fetchRepositoryTree() {
@@ -325,7 +326,7 @@
 
       function buildMediaItem(path) {
         const parts = path.split("/");
-        const filename = parts[parts.length - 1];
+        const filename = parts.at(-1);
         const folders = parts.slice(0, -1);
 
         return {
@@ -396,7 +397,9 @@
             document.body.appendChild(field);
             field.select();
 
-            if (!document.execCommand || !document.execCommand("copy")) {
+            const copied = document.execCommand?.("copy");
+
+            if (!copied) {
               field.remove();
               throw new Error("Clipboard access is unavailable in this browser.");
             }
@@ -441,6 +444,8 @@
             video.src = item.url;
             video.controls = true;
             video.preload = "metadata";
+            video.title = item.filename;
+            video.setAttribute("aria-label", item.filename);
             preview.appendChild(video);
           }
 
