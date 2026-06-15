@@ -354,7 +354,9 @@
           .filter((item) => !projectFilter.value || item.project === projectFilter.value)
           .filter((item) => !crewFilter.value || item.crewMember === crewFilter.value)
           .sort((left, right) => {
-            const key = sortBy.value;
+            const key = ["organization", "project", "crewMember", "filename"].includes(sortBy.value)
+              ? sortBy.value
+              : "filename";
             const primary = left[key].localeCompare(right[key], undefined, { sensitivity: "base" });
 
             if (primary !== 0) {
@@ -367,7 +369,7 @@
 
       async function copyToClipboard(url, button) {
         try {
-          if (navigator.clipboard?.writeText) {
+          if (typeof navigator.clipboard?.writeText === "function") {
             await navigator.clipboard.writeText(url);
           } else {
             const field = document.createElement("textarea");
