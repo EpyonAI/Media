@@ -216,7 +216,9 @@
         </label>
       </section>
 
-      <section id="status" class="status" aria-live="polite">Loading media…</section>
+      <section id="status" class="status" aria-live="polite" aria-atomic="true" role="status">
+        Loading media…
+      </section>
       <section id="emptyState" class="empty-state" hidden>
         No supported images or videos were found yet. Add files with extensions like
         <code>.png</code>, <code>.jpg</code>, <code>.webp</code>, <code>.mp4</code>,
@@ -246,9 +248,13 @@
       function inferRepository() {
         const host = window.location.hostname;
         const pathParts = window.location.pathname.split("/").filter(Boolean);
+        const githubPagesSuffix = ".github.io";
 
-        if (host.endsWith(".github.io") && pathParts.length > 0) {
-          return { owner: host.split(".")[0], repo: pathParts[0] };
+        if (host.endsWith(githubPagesSuffix) && pathParts.length > 0) {
+          return {
+            owner: host.slice(0, -githubPagesSuffix.length),
+            repo: pathParts[0],
+          };
         }
 
         return FALLBACK_REPOSITORY;
@@ -351,18 +357,29 @@
 
       async function copyToClipboard(url, button) {
         try {
-          await navigator.clipboard.writeText(url);
+          if (navigator.clipboard?.writeText) {
+            await navigator.clipboard.writeText(url);
+          } else {
+            const field = document.createElement("textarea");
+            field.value = url;
+            document.body.appendChild(field);
+            field.select();
+
+            if (!document.execCommand || !document.execCommand("copy")) {
+              field.remove();
+              throw new Error("Clipboard access is unavailable in this browser.");
+            }
+
+            field.remove();
+          }
         } catch {
-          const field = document.createElement("textarea");
-          field.value = url;
-          document.body.appendChild(field);
-          field.select();
-          document.execCommand("copy");
-          field.remove();
+          status.textContent = "Copy failed. Open the file directly and copy the URL from the browser.";
+          return;
         }
 
         const originalText = button.textContent;
         button.textContent = "Copied!";
+        status.textContent = `Copied ${url}`;
         setTimeout(() => {
           button.textContent = originalText;
         }, 1200);
